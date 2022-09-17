@@ -74,7 +74,7 @@ export interface QuestionOption {
   rows: string;
   orderSettingUuid: string;
   orderType: string;
-  selectableOrders: Array<Answer>;
+  selectableOrders: any;
 }
 
 export interface Answer {
