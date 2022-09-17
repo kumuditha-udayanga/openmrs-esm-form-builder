@@ -48,16 +48,17 @@ const CreateQuestion: React.FC<CreateQuestionModalProps> = ({ questions }) => {
   const [rows, setRows] = useState("");
   // Optional properties
   const [concept, setConcept] = useState<string>(null);
-  const [conceptMappings, setConceptMappings] = useState<ConceptMapping[]>([]);
+  const [conceptMappings, setConceptMappings] = useState<any>("");
   const [orderSettingUuid, setOrderSettingUuid] = useState("");
   const [orderType, setOrderType] = useState("");
   const [selectableOrders, setSelectableOrders] = useState<any>("");
 
   const [isConcept, setIsConcept] = useState<Boolean>(false);
+  const [isAnswers, setIsAnswers] = useState<Boolean>(false);
+  const [isConceptMapping, setIsConceptMapping] = useState<Boolean>(false);
   const [isOrderType, setIsOrderType] = useState<Boolean>(false);
   const [isOrderSettingUuid, setIsOrderSettingUuid] = useState<Boolean>(false);
   const [isSelectableOrders, setIsSelectableOrders] = useState<Boolean>(false);
-  const [isAnswers, setIsAnswers] = useState<Boolean>(false);
 
   useEffect(() => {
     setQuestionLabel("");
@@ -65,6 +66,7 @@ const CreateQuestion: React.FC<CreateQuestionModalProps> = ({ questions }) => {
     setRenderElement("placeholder-item");
     setQuestionId("");
     setAnswers("");
+    setConceptMappings("");
     setMax("");
     setMin("");
     setWeekList("");
@@ -72,6 +74,7 @@ const CreateQuestion: React.FC<CreateQuestionModalProps> = ({ questions }) => {
     setOrderType("placeholder-item");
     setSelectableOrders("");
     setIsConcept(false);
+    setIsConceptMapping(false);
     setIsOrderType(false);
     setIsOrderSettingUuid(false);
     setIsSelectableOrders(false);
@@ -90,11 +93,16 @@ const CreateQuestion: React.FC<CreateQuestionModalProps> = ({ questions }) => {
       )
     );
     setConcept(selectedConcept.uuid);
+    setIsConceptMapping(true);
     setConceptMappings(
-      selectedConcept.mappings.map((map) => {
-        let data = map.display.split(": ");
-        return { type: data[0], value: data[1] };
-      })
+      JSON.stringify(
+        selectedConcept.mappings.map((map) => {
+          let data = map.display.split(": ");
+          return { type: data[0], value: data[1] };
+        }),
+        null,
+        2
+      )
     );
   }, []);
 
@@ -115,6 +123,10 @@ const CreateQuestion: React.FC<CreateQuestionModalProps> = ({ questions }) => {
         let parsedAnswers = JSON.parse(answers);
         newQuestion.questionOptions["answers"] = parsedAnswers;
       }
+      if (isConceptMapping) {
+        let parsedConceptMapping = JSON.parse(conceptMappings);
+        newQuestion.questionOptions["conceptMappings"] = parsedConceptMapping;
+      }
       if (isOrderType) {
         newQuestion.questionOptions["orderType"] = orderType;
       }
@@ -125,6 +137,9 @@ const CreateQuestion: React.FC<CreateQuestionModalProps> = ({ questions }) => {
         let parsedSelectableOrders = JSON.parse(selectableOrders);
         newQuestion.questionOptions["selectableOrders"] =
           parsedSelectableOrders;
+      }
+      if (questionType == "obsGroup") {
+        newQuestion["questions"] = [];
       }
       switch (renderElement) {
         case "number":
@@ -422,6 +437,96 @@ const CreateQuestion: React.FC<CreateQuestionModalProps> = ({ questions }) => {
                     </Column>
                   </Row>
                 ) : null}
+                {isAnswers ? (
+                  <Row>
+                    <Column md={6}>
+                      <div>
+                        <span className={styles.editorTitle}>Answers</span>
+                        <AceEditor
+                          mode="json"
+                          theme="github"
+                          name="answers"
+                          onChange={(value) => {
+                            setAnswers(value);
+                          }}
+                          fontSize={10}
+                          height="200px"
+                          showPrintMargin={true}
+                          showGutter={true}
+                          highlightActiveLine={true}
+                          value={answers}
+                          setOptions={{
+                            enableBasicAutocompletion: false,
+                            enableLiveAutocompletion: false,
+                            displayIndentGuides: false,
+                            enableSnippets: false,
+                            showLineNumbers: true,
+                            tabSize: 2,
+                          }}
+                        />
+                      </div>
+                    </Column>
+                    <Column md={1}>
+                      <Button
+                        size="sm"
+                        className={styles.editorOption}
+                        renderIcon={TrashCan}
+                        iconDescription="Delete Element"
+                        hasIconOnly
+                        kind="ghost"
+                        onClick={() => {
+                          setIsAnswers(false);
+                        }}
+                      />
+                    </Column>
+                  </Row>
+                ) : null}
+                {isConceptMapping ? (
+                  <Row>
+                    <Column md={6}>
+                      <div>
+                        <span className={styles.editorTitle}>
+                          Concept Mapping
+                        </span>
+                        <AceEditor
+                          mode="json"
+                          theme="github"
+                          name="conceptMapping"
+                          onChange={(value) => {
+                            setConceptMappings(value);
+                          }}
+                          fontSize={10}
+                          height="200px"
+                          showPrintMargin={true}
+                          showGutter={true}
+                          highlightActiveLine={true}
+                          value={conceptMappings}
+                          setOptions={{
+                            enableBasicAutocompletion: false,
+                            enableLiveAutocompletion: false,
+                            displayIndentGuides: false,
+                            enableSnippets: false,
+                            showLineNumbers: true,
+                            tabSize: 2,
+                          }}
+                        />
+                      </div>
+                    </Column>
+                    <Column md={1}>
+                      <Button
+                        size="sm"
+                        className={styles.editorOption}
+                        renderIcon={TrashCan}
+                        iconDescription="Delete Element"
+                        hasIconOnly
+                        kind="ghost"
+                        onClick={() => {
+                          setIsConceptMapping(false);
+                        }}
+                      />
+                    </Column>
+                  </Row>
+                ) : null}
                 {isOrderType ? (
                   <Row>
                     <Column md={7}>
@@ -528,50 +633,6 @@ const CreateQuestion: React.FC<CreateQuestionModalProps> = ({ questions }) => {
                         kind="ghost"
                         onClick={() => {
                           setIsSelectableOrders(false);
-                        }}
-                      />
-                    </Column>
-                  </Row>
-                ) : null}
-                {isAnswers ? (
-                  <Row>
-                    <Column md={6}>
-                      <div>
-                        <span className={styles.editorTitle}>Answers</span>
-                        <AceEditor
-                          mode="json"
-                          theme="github"
-                          name="answers"
-                          onChange={(value) => {
-                            setAnswers(value);
-                          }}
-                          fontSize={10}
-                          height="200px"
-                          showPrintMargin={true}
-                          showGutter={true}
-                          highlightActiveLine={true}
-                          value={answers}
-                          setOptions={{
-                            enableBasicAutocompletion: false,
-                            enableLiveAutocompletion: false,
-                            displayIndentGuides: false,
-                            enableSnippets: false,
-                            showLineNumbers: true,
-                            tabSize: 2,
-                          }}
-                        />
-                      </div>
-                    </Column>
-                    <Column md={1}>
-                      <Button
-                        size="sm"
-                        className={styles.editorOption}
-                        renderIcon={TrashCan}
-                        iconDescription="Delete Element"
-                        hasIconOnly
-                        kind="ghost"
-                        onClick={() => {
-                          setIsAnswers(false);
                         }}
                       />
                     </Column>

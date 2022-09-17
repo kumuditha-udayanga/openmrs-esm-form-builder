@@ -58,6 +58,7 @@ const SectionElement: React.FC<SectionElementProps> = ({
         ? section.questions.map((question, key) => (
             <QuestionElement
               question={question}
+              section={section}
               index={key}
               deleteQuestion={deleteQuestion}
               key={key}

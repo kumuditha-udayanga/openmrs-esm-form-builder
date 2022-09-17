@@ -59,22 +59,23 @@ export interface Question {
   id: string;
   type: string;
   questionOptions: QuestionOption;
+  question?: Array<Question>;
 }
 
 export interface QuestionOption {
-  rendering: string;
-  answers: Array<Answer>;
-  max: string;
-  min: string;
-  concept: string;
-  conceptMappings: Array<ConceptMapping>;
-  weekList: [];
-  attributeType: string;
-  calculate: any;
-  rows: string;
-  orderSettingUuid: string;
-  orderType: string;
-  selectableOrders: any;
+  rendering?: string;
+  answers?: Array<Answer>;
+  max?: string;
+  min?: string;
+  concept?: string;
+  conceptMappings?: Array<ConceptMapping>;
+  weekList?: [];
+  attributeType?: string;
+  calculate?: any;
+  rows?: string;
+  orderSettingUuid?: string;
+  orderType?: string;
+  selectableOrders?: any;
 }
 
 export interface Answer {

@@ -1,7 +1,10 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import AceEditor from "react-ace";
+import "ace-builds/webpack-resolver";
 import {
   Button,
+  Column,
   ComboBox,
   ComposedModal,
   Form,
@@ -14,8 +17,8 @@ import {
   SelectItem,
   TextInput,
 } from "carbon-components-react";
-import { Answer, Concept, ConceptMapping, Question } from "../../../api/types";
-import { Add, Edit, TrashCan } from "@carbon/icons-react/next";
+import { Concept, Question, Section } from "../../../api/types";
+import { Edit, TrashCan } from "@carbon/icons-react/next";
 import { SchemaContext } from "../../../context/context";
 import { showToast, useConfig } from "@openmrs/esm-framework";
 import { useSearchConcept } from "../../../api/concept";
@@ -23,9 +26,15 @@ import styles from "./modals.scss";
 
 interface EditQuestionModalProps {
   question: Question;
+  section: Section;
+  index: number;
 }
 
-const EditQuestion: React.FC<EditQuestionModalProps> = ({ question }) => {
+const EditQuestion: React.FC<EditQuestionModalProps> = ({
+  question,
+  section,
+  index,
+}) => {
   const { t } = useTranslation();
   const [searchConcept, setSearchConcept] = useState("");
   const { concepts } = useSearchConcept(searchConcept);
@@ -38,183 +47,158 @@ const EditQuestion: React.FC<EditQuestionModalProps> = ({ question }) => {
   const [questionId, setQuestionId] = useState("");
   // Question Options
   const [renderElement, setRenderElement] = useState("");
-  const [answers, setAnswers] = useState<Answer[]>([]);
+  const [answers, setAnswers] = useState<any>("");
   const [max, setMax] = useState("");
   const [min, setMin] = useState("");
-  const [concept, setConcept] = useState<string>(null);
-  const [conceptMappings, setConceptMappings] = useState<ConceptMapping[]>([]);
-  const [weekList, setWeekList] = useState<any>([]);
-  const [attributeType, setAttributeType] = useState("");
+  const [weekList, setWeekList] = useState<any>("");
   const [rows, setRows] = useState("");
-  const [orderSettingUuid, setOrderSettingUuid] = useState("");
+  // Optional properties
+  const [concept, setConcept] = useState<string>(null);
+  const [conceptMappings, setConceptMappings] = useState<any>("");
   const [orderType, setOrderType] = useState("");
-  const [selectableOrders, setSelectableOrders] = useState<Answer[]>([]);
+  const [orderSettingUuid, setOrderSettingUuid] = useState("");
+  const [selectableOrders, setSelectableOrders] = useState<any>("");
+
+  const [isConcept, setIsConcept] = useState<Boolean>(false);
+  const [isAnswers, setIsAnswers] = useState<Boolean>(false);
+  const [isConceptMapping, setIsConceptMapping] = useState<Boolean>(false);
+  const [isOrderType, setIsOrderType] = useState<Boolean>(false);
+  const [isOrderSettingUuid, setIsOrderSettingUuid] = useState<Boolean>(false);
+  const [isSelectableOrders, setIsSelectableOrders] = useState<Boolean>(false);
 
   useEffect(() => {
     setQuestionLabel(question.label);
     setQuestionType(question.type);
     setQuestionId(question.id);
-    // Question Options
     setRenderElement(question.questionOptions.rendering);
-    setConceptMappings(question.questionOptions.conceptMappings);
+    if (question.questionOptions.concept) {
+      setIsConcept(true);
+      setConcept(question.questionOptions.concept);
+    }
+    if (question.questionOptions.conceptMappings) {
+      setIsConceptMapping(true);
+      setConceptMappings(
+        JSON.stringify(question.questionOptions.conceptMappings, null, 2)
+      );
+    }
+    if (question.questionOptions.orderType) {
+      setIsOrderType(true);
+      setOrderType(question.questionOptions.orderType);
+    } else {
+      setOrderType("placeholder-item");
+    }
+    if (question.questionOptions.orderSettingUuid) {
+      setIsOrderSettingUuid(true);
+      setOrderSettingUuid(question.questionOptions.orderSettingUuid);
+    }
+    if (question.questionOptions.answers) {
+      setIsAnswers(true);
+      setAnswers(JSON.stringify(question.questionOptions.answers, null, 2));
+    }
+    if (question.questionOptions.selectableOrders) {
+      setIsSelectableOrders(true);
+      setSelectableOrders(
+        JSON.stringify(question.questionOptions.selectableOrders, null, 2)
+      );
+    }
     switch (question.questionOptions.rendering) {
-      case "select" || "multiCheckbox" || "radio":
-        setConcept(question.questionOptions.concept);
-        setAnswers(question.questionOptions.answers);
-        break;
       case "number":
-        setConcept(question.questionOptions.concept);
         setMax(question.questionOptions.max);
         setMin(question.questionOptions.min);
         break;
       case "date":
-        setConcept(question.questionOptions.concept);
-        setWeekList(question.questionOptions.weekList);
+        if (question.questionOptions.weekList) {
+          setWeekList(
+            JSON.stringify(question.questionOptions.weekList, null, 2)
+          );
+        }
         break;
       case "textarea":
-        setConcept(question.questionOptions.concept);
         setRows(question.questionOptions.rows);
         break;
-      case "ui-select-extended":
-        setAttributeType(question.questionOptions.attributeType);
-        break;
-      case "repeating":
-        setOrderSettingUuid(question.questionOptions.orderSettingUuid);
-        setOrderType(question.questionOptions.orderType);
-        setSelectableOrders(question.questionOptions.selectableOrders);
-        break;
-      default:
-        setConcept(question.questionOptions.concept);
-        break;
     }
-  }, [question]);
+  }, [openEditQuestionModal, question]);
 
   const removeConcept = () => {
-    setConcept(null);
-    setAnswers([]);
-    setConceptMappings([]);
-    delete question.questionOptions.concept;
-    delete question.questionOptions.conceptMappings;
-    delete question.questionOptions.answers;
+    setConcept("");
+    setAnswers("");
+    setConceptMappings("");
   };
 
   const onConceptChange = useCallback((concept: Concept) => {
-    question.questionOptions.answers = concept.answers.map((answer) => {
-      return { label: answer.display, concept: answer.uuid };
-    });
-    question.questionOptions.concept = concept.uuid;
-    question.questionOptions.conceptMappings = concept.mappings.map((map) => {
-      let data = map.display.split(": ");
-      return { type: data[0], value: data[1] };
-    });
+    setIsAnswers(true);
+    setAnswers(
+      JSON.stringify(
+        concept.answers.map((answer) => {
+          return { label: answer.display, concept: answer.uuid };
+        }),
+        null,
+        2
+      )
+    );
+    setConcept(concept.uuid);
+    setIsConceptMapping(true);
+    setConceptMappings(
+      JSON.stringify(
+        concept.mappings.map((map) => {
+          let data = map.display.split(": ");
+          return { type: data[0], value: data[1] };
+        }),
+        null,
+        2
+      )
+    );
   }, []);
 
   const handleSubmit = (event) => {
     event.preventDefault();
+    let newQuestion = {
+      label: questionLabel,
+      type: questionType,
+      id: questionId,
+      questionOptions: {},
+    };
     try {
-      if (questionLabel != question.label) {
-        question.label = questionLabel;
+      newQuestion.questionOptions["rendering"] = renderElement;
+      if (isConcept) {
+        newQuestion.questionOptions["concept"] = concept;
       }
-      if (questionType != question.type) {
-        question.type = questionType;
+      if (isAnswers) {
+        let parsedAnswers = JSON.parse(answers);
+        newQuestion.questionOptions["answers"] = parsedAnswers;
       }
-      if (questionId != question.id) {
-        question.id = questionId;
+      if (isConceptMapping) {
+        let parsedConceptMapping = JSON.parse(conceptMappings);
+        newQuestion.questionOptions["conceptMappings"] = parsedConceptMapping;
       }
-      if (renderElement != question.questionOptions.rendering) {
-        question.questionOptions.rendering = renderElement;
-        switch (question.questionOptions.rendering) {
-          case "select" || "multiCheckbox" || "radio":
-            delete question.questionOptions.max;
-            delete question.questionOptions.min;
-            delete question.questionOptions.attributeType;
-            delete question.questionOptions.orderSettingUuid;
-            delete question.questionOptions.orderType;
-            delete question.questionOptions.selectableOrders;
-            delete question.questionOptions.rows;
-            delete question.questionOptions.weekList;
-            delete question.questionOptions.calculate;
-            break;
-          case "number":
-            question.questionOptions.min = min;
-            question.questionOptions.max = max;
-            delete question.questionOptions.answers;
-            delete question.questionOptions.attributeType;
-            delete question.questionOptions.orderSettingUuid;
-            delete question.questionOptions.orderType;
-            delete question.questionOptions.selectableOrders;
-            delete question.questionOptions.rows;
-            delete question.questionOptions.weekList;
-            delete question.questionOptions.calculate;
-            break;
-          case "date":
-            question.questionOptions.weekList = weekList;
-
-            delete question.questionOptions.answers;
-            delete question.questionOptions.max;
-            delete question.questionOptions.min;
-            delete question.questionOptions.attributeType;
-            delete question.questionOptions.orderSettingUuid;
-            delete question.questionOptions.orderType;
-            delete question.questionOptions.selectableOrders;
-            delete question.questionOptions.rows;
-            delete question.questionOptions.calculate;
-            break;
-          case "textarea":
-            question.questionOptions.rows = rows;
-
-            delete question.questionOptions.answers;
-            delete question.questionOptions.max;
-            delete question.questionOptions.min;
-            delete question.questionOptions.attributeType;
-            delete question.questionOptions.orderSettingUuid;
-            delete question.questionOptions.orderType;
-            delete question.questionOptions.selectableOrders;
-            delete question.questionOptions.weekList;
-            delete question.questionOptions.calculate;
-            break;
-          case "ui-select-extended":
-            question.questionOptions.attributeType = attributeType;
-
-            delete question.questionOptions.concept;
-            delete question.questionOptions.answers;
-            delete question.questionOptions.max;
-            delete question.questionOptions.min;
-            delete question.questionOptions.orderSettingUuid;
-            delete question.questionOptions.orderType;
-            delete question.questionOptions.selectableOrders;
-            delete question.questionOptions.weekList;
-            delete question.questionOptions.rows;
-            delete question.questionOptions.calculate;
-            break;
-          case "repeating":
-            question.questionOptions.orderSettingUuid = orderSettingUuid;
-            question.questionOptions.orderType = orderType;
-            question.questionOptions.selectableOrders = selectableOrders;
-
-            delete question.questionOptions.concept;
-            delete question.questionOptions.answers;
-            delete question.questionOptions.max;
-            delete question.questionOptions.min;
-            delete question.questionOptions.attributeType;
-            delete question.questionOptions.weekList;
-            delete question.questionOptions.rows;
-            delete question.questionOptions.calculate;
-            break;
-          default:
-            delete question.questionOptions.answers;
-            delete question.questionOptions.max;
-            delete question.questionOptions.min;
-            delete question.questionOptions.attributeType;
-            delete question.questionOptions.orderSettingUuid;
-            delete question.questionOptions.orderType;
-            delete question.questionOptions.selectableOrders;
-            delete question.questionOptions.rows;
-            delete question.questionOptions.weekList;
-            delete question.questionOptions.calculate;
-            break;
-        }
+      if (isOrderType) {
+        newQuestion.questionOptions["orderType"] = orderType;
       }
+      if (isOrderSettingUuid) {
+        newQuestion.questionOptions["orderSettingUuid"] = orderSettingUuid;
+      }
+      if (isSelectableOrders) {
+        let parsedSelectableOrders = JSON.parse(selectableOrders);
+        newQuestion.questionOptions["selectableOrders"] =
+          parsedSelectableOrders;
+      }
+      if (questionType == "obsGroup") {
+        newQuestion["questions"] = [];
+      }
+      switch (renderElement) {
+        case "number":
+          newQuestion.questionOptions["max"] = max;
+          newQuestion.questionOptions["min"] = min;
+          break;
+        case "date":
+          let parsedWeekList = JSON.parse(weekList);
+          newQuestion.questionOptions["weekList"] = parsedWeekList;
+          break;
+        case "textarea":
+          newQuestion.questionOptions["rows"] = rows;
+          break;
+      }
+      section.questions[index] = newQuestion;
       setSchema({ ...schema });
       showToast({
         title: t("success", "Success!"),
@@ -246,6 +230,102 @@ const EditQuestion: React.FC<EditQuestionModalProps> = ({ question }) => {
               aria-label="edit-question"
               className={styles.modalContent}
             >
+              <Select
+                value="default"
+                id="type"
+                onChange={() => {}}
+                labelText="Add new property"
+                disabled={false}
+                inline={true}
+                invalid={false}
+              >
+                <SelectItem
+                  text="Select property"
+                  value="default"
+                  disabled
+                  hidden
+                />
+                <SelectItem
+                  text="Concept"
+                  value="concept"
+                  onClick={() => {
+                    if (isConcept) {
+                      showToast({
+                        title: t("warning", "Warning"),
+                        kind: "warning",
+                        critical: true,
+                        description: "Property Already in use",
+                      });
+                    } else {
+                      setIsConcept(true);
+                    }
+                  }}
+                />
+                <SelectItem
+                  text="Order Type"
+                  value="orderType"
+                  onClick={() => {
+                    if (isOrderType) {
+                      showToast({
+                        title: t("warining", "Warning"),
+                        kind: "warning",
+                        critical: true,
+                        description: "Property Already in use",
+                      });
+                    } else {
+                      setIsOrderType(true);
+                    }
+                  }}
+                />
+                <SelectItem
+                  text="Order Setting Uuid"
+                  value="orderSettingUuid"
+                  onClick={() => {
+                    if (isOrderSettingUuid) {
+                      showToast({
+                        title: t("warining", "Warning"),
+                        kind: "warning",
+                        critical: true,
+                        description: "Property Already in use",
+                      });
+                    } else {
+                      setIsOrderSettingUuid(true);
+                    }
+                  }}
+                />
+                <SelectItem
+                  text="Selectable Orders"
+                  value="selectableOrders"
+                  onClick={() => {
+                    if (isSelectableOrders) {
+                      showToast({
+                        title: t("warining", "Warning"),
+                        kind: "warning",
+                        critical: true,
+                        description: "Property Already in use",
+                      });
+                    } else {
+                      setIsSelectableOrders(true);
+                    }
+                  }}
+                />
+                <SelectItem
+                  text="Answers"
+                  value="answers"
+                  onClick={() => {
+                    if (isAnswers) {
+                      showToast({
+                        title: t("warining", "Warning"),
+                        kind: "warning",
+                        critical: true,
+                        description: "Property Already in use",
+                      });
+                    } else {
+                      setIsAnswers(true);
+                    }
+                  }}
+                />
+              </Select>
               <FormGroup legendText={""}>
                 <TextInput
                   id="questionLabel"
@@ -256,7 +336,12 @@ const EditQuestion: React.FC<EditQuestionModalProps> = ({ question }) => {
                 />
                 <Select
                   value={questionType}
-                  onChange={(event) => setQuestionType(event.target.value)}
+                  onChange={(event) => {
+                    setQuestionType(event.target.value);
+                    if (event.target.value == "obs") {
+                      setIsConcept(true);
+                    }
+                  }}
                   id="type"
                   invalidText="A valid value is required"
                   labelText="Type"
@@ -329,33 +414,79 @@ const EditQuestion: React.FC<EditQuestionModalProps> = ({ question }) => {
                   onChange={(event) => setQuestionId(event.target.value)}
                   required
                 />
-                {renderElement !== "ui-select-extended" ? (
-                  concept === null ? (
-                    <ComboBox
-                      onChange={(event) => {
-                        event.selectedItem != null
-                          ? onConceptChange(event.selectedItem)
-                          : null;
-                      }}
-                      id="concepts"
-                      onInputChange={(event) => {
-                        setSearchConcept(event);
-                      }}
-                      items={concepts}
-                      itemToString={(concept) =>
-                        concept ? concept?.display : ""
-                      }
-                      placeholder="Search Concept"
-                      titleText="Concept"
-                      className={styles.comboBox}
-                      required
-                    />
+                {renderElement === "date" ? (
+                  <Row>
+                    <Column md={6}>
+                      <div>
+                        <span className={styles.editorTitle}>Week List</span>
+                        <AceEditor
+                          mode="json"
+                          theme="github"
+                          name="weekList"
+                          onChange={(value) => setWeekList(value)}
+                          fontSize={10}
+                          height="200px"
+                          showPrintMargin={true}
+                          showGutter={true}
+                          highlightActiveLine={true}
+                          value={weekList}
+                          setOptions={{
+                            enableBasicAutocompletion: false,
+                            enableLiveAutocompletion: false,
+                            displayIndentGuides: false,
+                            enableSnippets: false,
+                            showLineNumbers: true,
+                            tabSize: 2,
+                          }}
+                        />
+                      </div>
+                    </Column>
+                  </Row>
+                ) : null}
+                {isConcept ? (
+                  concept === "" ? (
+                    <Row>
+                      <Column md={7}>
+                        <ComboBox
+                          onChange={(event) => {
+                            event.selectedItem != null
+                              ? onConceptChange(event.selectedItem)
+                              : null;
+                          }}
+                          id="concepts"
+                          onInputChange={(event) => {
+                            setSearchConcept(event);
+                          }}
+                          items={concepts}
+                          itemToString={(concept) =>
+                            concept ? concept?.display : ""
+                          }
+                          placeholder="Search Concept"
+                          titleText="Concept"
+                          className={styles.comboBox}
+                          required
+                        />
+                      </Column>
+                      <Column md={1}>
+                        <Button
+                          className={styles.propertyOption}
+                          size="sm"
+                          renderIcon={TrashCan}
+                          iconDescription="Delete Element"
+                          hasIconOnly
+                          kind="ghost"
+                          onClick={() => {
+                            setIsConcept(false);
+                          }}
+                        />
+                      </Column>
+                    </Row>
                   ) : (
                     <Row className={styles.conceptRow}>
                       <TextInput
                         id="defaultConcept"
                         labelText="Concept"
-                        defaultValue={question.questionOptions.concept}
+                        defaultValue={concept}
                         readOnly
                       />
                       <Button
@@ -371,6 +502,207 @@ const EditQuestion: React.FC<EditQuestionModalProps> = ({ question }) => {
                       />
                     </Row>
                   )
+                ) : null}
+                {isAnswers ? (
+                  <Row>
+                    <Column md={6}>
+                      <div>
+                        <span className={styles.editorTitle}>Answers</span>
+                        <AceEditor
+                          mode="json"
+                          theme="github"
+                          name="answers"
+                          onChange={(value) => {
+                            setAnswers(value);
+                          }}
+                          fontSize={10}
+                          height="200px"
+                          showPrintMargin={true}
+                          showGutter={true}
+                          highlightActiveLine={true}
+                          value={answers}
+                          setOptions={{
+                            enableBasicAutocompletion: false,
+                            enableLiveAutocompletion: false,
+                            displayIndentGuides: false,
+                            enableSnippets: false,
+                            showLineNumbers: true,
+                            tabSize: 2,
+                          }}
+                        />
+                      </div>
+                    </Column>
+                    <Column md={1}>
+                      <Button
+                        size="sm"
+                        className={styles.editorOption}
+                        renderIcon={TrashCan}
+                        iconDescription="Delete Element"
+                        hasIconOnly
+                        kind="ghost"
+                        onClick={() => {
+                          setIsAnswers(false);
+                        }}
+                      />
+                    </Column>
+                  </Row>
+                ) : null}
+                {isConceptMapping ? (
+                  <Row>
+                    <Column md={6}>
+                      <div>
+                        <span className={styles.editorTitle}>
+                          Concept Mapping
+                        </span>
+                        <AceEditor
+                          mode="json"
+                          theme="github"
+                          name="conceptMapping"
+                          onChange={(value) => {
+                            setConceptMappings(value);
+                          }}
+                          fontSize={10}
+                          height="200px"
+                          showPrintMargin={true}
+                          showGutter={true}
+                          highlightActiveLine={true}
+                          value={conceptMappings}
+                          setOptions={{
+                            enableBasicAutocompletion: false,
+                            enableLiveAutocompletion: false,
+                            displayIndentGuides: false,
+                            enableSnippets: false,
+                            showLineNumbers: true,
+                            tabSize: 2,
+                          }}
+                        />
+                      </div>
+                    </Column>
+                    <Column md={1}>
+                      <Button
+                        size="sm"
+                        className={styles.editorOption}
+                        renderIcon={TrashCan}
+                        iconDescription="Delete Element"
+                        hasIconOnly
+                        kind="ghost"
+                        onClick={() => {
+                          setIsConceptMapping(false);
+                        }}
+                      />
+                    </Column>
+                  </Row>
+                ) : null}
+                {isOrderType ? (
+                  <Row>
+                    <Column md={7}>
+                      <Select
+                        value={orderType}
+                        onChange={(event) => setOrderType(event.target.value)}
+                        id="orderType"
+                        invalidText="A valid value is required"
+                        labelText="Order Type"
+                        disabled={false}
+                        inline={false}
+                        invalid={false}
+                        required
+                      >
+                        <SelectItem
+                          text="Choose an option"
+                          value="placeholder-item"
+                          disabled
+                          hidden
+                        />
+                        <SelectItem text="Drug Order" value="drugorder" />
+                        <SelectItem text="Test Order" value="testorder" />
+                      </Select>
+                    </Column>
+                    <Column md={1}>
+                      <Button
+                        size="sm"
+                        className={styles.propertyOption}
+                        renderIcon={TrashCan}
+                        iconDescription="Delete Element"
+                        hasIconOnly
+                        kind="ghost"
+                        onClick={() => {
+                          setIsOrderType(false);
+                        }}
+                      />
+                    </Column>
+                  </Row>
+                ) : null}
+                {isOrderSettingUuid ? (
+                  <Row>
+                    <Column md={7}>
+                      <TextInput
+                        id="orderSettingUuid"
+                        labelText="Order Setting Uuid"
+                        value={orderSettingUuid}
+                        onChange={(event) =>
+                          setOrderSettingUuid(event.target.value)
+                        }
+                        required
+                      />
+                    </Column>
+                    <Column md={1}>
+                      <Button
+                        size="sm"
+                        className={styles.propertyOption}
+                        renderIcon={TrashCan}
+                        iconDescription="Delete Element"
+                        hasIconOnly
+                        kind="ghost"
+                        onClick={() => {
+                          setIsOrderSettingUuid(false);
+                        }}
+                      />
+                    </Column>
+                  </Row>
+                ) : null}
+                {isSelectableOrders ? (
+                  <Row>
+                    <Column md={6}>
+                      <div>
+                        <span className={styles.editorTitle}>
+                          Selectable Orders
+                        </span>
+                        <AceEditor
+                          mode="json"
+                          theme="github"
+                          name="selectableOrders"
+                          onChange={(value) => setSelectableOrders(value)}
+                          fontSize={10}
+                          height="200px"
+                          showPrintMargin={true}
+                          showGutter={true}
+                          highlightActiveLine={true}
+                          value={selectableOrders}
+                          setOptions={{
+                            enableBasicAutocompletion: false,
+                            enableLiveAutocompletion: false,
+                            displayIndentGuides: false,
+                            enableSnippets: false,
+                            showLineNumbers: true,
+                            tabSize: 2,
+                          }}
+                        />
+                      </div>
+                    </Column>
+                    <Column md={1}>
+                      <Button
+                        size="sm"
+                        className={styles.editorOption}
+                        renderIcon={TrashCan}
+                        iconDescription="Delete Element"
+                        hasIconOnly
+                        kind="ghost"
+                        onClick={() => {
+                          setIsSelectableOrders(false);
+                        }}
+                      />
+                    </Column>
+                  </Row>
                 ) : null}
               </FormGroup>
             </ModalBody>
